@@ -1,13 +1,11 @@
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>🗣️ English Tutor AI – Habla, Corrige y Conversa (Gratis)</title>
-  <!-- Tailwind CSS para diseño limpio -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Animación sutil para el micrófono cuando graba */
     @keyframes pulse-ring {
       0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
       70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
@@ -23,7 +21,6 @@
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 font-sans antialiased">
 
   <div class="max-w-2xl mx-auto">
-    <!-- Cabecera -->
     <header class="text-center mb-6">
       <h1 class="text-4xl font-bold text-indigo-800 flex items-center justify-center gap-3">
         <span>🇬🇧</span> Speak & Correct <span>🤖</span>
@@ -31,7 +28,6 @@
       <p class="text-gray-600 text-lg mt-1">Habla en inglés · La IA te corrige y te responde</p>
     </header>
 
-    <!-- Panel de configuración de API Key -->
     <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-5 mb-6 border border-indigo-200">
       <div class="flex flex-col sm:flex-row gap-3 items-end">
         <div class="flex-grow">
@@ -51,9 +47,7 @@
       <div id="apiKeyStatus" class="text-sm mt-2 font-medium"></div>
     </div>
 
-    <!-- Área principal de conversación -->
     <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-      <!-- Pantalla de mensajes -->
       <div class="h-80 overflow-y-auto p-5 space-y-4 bg-gray-50/50" id="chatLog">
         <div class="flex justify-start">
           <div class="bg-indigo-100 text-indigo-900 px-4 py-2 rounded-2xl rounded-bl-none max-w-[80%]">
@@ -61,10 +55,8 @@
             <p>¡Hola! Presiona el micrófono y habla en inglés. Te corregiré y responderé.</p>
           </div>
         </div>
-        <!-- Los mensajes aparecerán aquí dinámicamente -->
       </div>
 
-      <!-- Zona de estado y botón de micrófono -->
       <div class="p-5 bg-white border-t border-gray-200 flex flex-col items-center gap-3">
         <div id="statusMessage" class="text-gray-500 text-sm h-6 flex items-center gap-2">
           <span id="statusIcon">🎤</span>
@@ -81,7 +73,6 @@
       </div>
     </div>
 
-    <!-- Instrucciones rápidas -->
     <div class="mt-6 text-sm text-gray-600 bg-white/60 backdrop-blur-sm p-4 rounded-xl">
       <p class="font-semibold mb-1">💡 Cómo usar:</p>
       <ol class="list-decimal list-inside space-y-1">
@@ -98,7 +89,6 @@
     (function(){
       "use strict";
 
-      // ---------- DOM Elements ----------
       const apiKeyInput = document.getElementById('apiKeyInput');
       const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
       const apiKeyStatus = document.getElementById('apiKeyStatus');
@@ -107,18 +97,14 @@
       const statusText = document.getElementById('statusText');
       const chatLog = document.getElementById('chatLog');
 
-      // ---------- State ----------
       let apiKey = localStorage.getItem('gemini_api_key') || '';
       let recognition = null;
       let isRecording = false;
-      let speechSynthesisUtterance = null;
       let synth = window.speechSynthesis;
 
-      // Inicializar input con key guardada
       apiKeyInput.value = apiKey;
       updateApiKeyStatus();
 
-      // ---------- Funciones de UI ----------
       function updateApiKeyStatus() {
         if (apiKey) {
           apiKeyStatus.innerHTML = '✅ API Key guardada en el navegador.';
@@ -155,7 +141,6 @@
         messageDiv.appendChild(bubble);
         chatLog.appendChild(messageDiv);
         
-        // Auto-scroll al final
         chatLog.scrollTop = chatLog.scrollHeight;
       }
 
@@ -169,7 +154,7 @@
         }
       }
 
-      // ---------- Llamada a Gemini API ----------
+      // ---------- FUNCIÓN MEJORADA PARA LLAMAR A LA IA ----------
       async function callGeminiForCorrectionAndResponse(userText) {
         if (!apiKey) {
           throw new Error('Falta la API Key. Guárdala primero.');
@@ -183,7 +168,8 @@ Your task:
 
 Output your answer strictly as a JSON object with keys "correction" and "response". Do not include any other text.`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        // Usamos gemini-2.0-flash (modelo gratuito y estable)
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -201,37 +187,51 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!aiText) throw new Error('La IA no devolvió texto válido.');
 
-        // Extraer JSON (puede venir envuelto en markdown ```json ... ```)
-        let jsonStr = aiText.trim();
-        const jsonMatch = jsonStr.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) jsonStr = jsonMatch[1];
-        else {
-          // Intenta limpiar posibles prefijos/sufijos
-          const firstBrace = jsonStr.indexOf('{');
-          const lastBrace = jsonStr.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace !== -1) {
-            jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-          }
-        }
+        // 🔍 Mostrar en consola la respuesta cruda (para depurar si falla)
+        console.log('🔍 Respuesta cruda de la IA:', aiText);
 
-        const parsed = JSON.parse(jsonStr);
+        // 🧹 LIMPIEZA ROBUSTA DEL JSON
+        let jsonStr = aiText.trim();
+        
+        // 1. Eliminar bloques de código markdown (```json ... ```)
+        const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (codeBlockMatch) {
+          jsonStr = codeBlockMatch[1];
+        }
+        
+        // 2. Eliminar cualquier texto antes de la primera llave '{' y después de la última '}'
+        const firstBrace = jsonStr.indexOf('{');
+        const lastBrace = jsonStr.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+          jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+        }
+        
+        // 3. Limpiar caracteres de control o espacios extraños
+        jsonStr = jsonStr.replace(/[\u0000-\u001F]+/g, ' '); // Elimina caracteres de control
+        
+        // 4. Intentar parsear
+        let parsed;
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch (e) {
+          console.error('❌ Error al parsear JSON limpio:', jsonStr);
+          throw new Error('La IA no devolvió un JSON válido. Revisa la consola (F12) para más detalles.');
+        }
+        
         if (!parsed.correction || !parsed.response) {
-          throw new Error('Formato de respuesta inesperado de la IA.');
+          throw new Error('El JSON no contiene las claves "correction" y "response".');
         }
         return parsed;
       }
 
-      // ---------- Text-to-Speech ----------
       function speakText(text) {
         if (!text) return;
-        // Cancelar cualquier habla previa
         if (synth.speaking) synth.cancel();
         
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
-        // Seleccionar una voz femenina en inglés si está disponible
         const voices = synth.getVoices();
         const preferredVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google UK')) || 
                                voices.find(v => v.lang === 'en-US') || 
@@ -241,7 +241,6 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         synth.speak(utterance);
       }
 
-      // ---------- Procesar transcripción ----------
       async function handleUserSpeech(transcript) {
         addMessage('user', transcript);
         setStatus('⏳', 'Procesando con IA...');
@@ -249,7 +248,6 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         try {
           const result = await callGeminiForCorrectionAndResponse(transcript);
           
-          // Mostrar corrección si es diferente
           const correction = result.correction.trim();
           const responseText = result.response.trim();
           
@@ -257,10 +255,7 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
             addMessage('assistant', correction, true);
           }
           
-          // Mostrar respuesta de la IA
           addMessage('assistant', responseText);
-          
-          // Leer la respuesta (y opcionalmente la corrección)
           speakText(responseText);
           
           setStatus('✅', '¡Listo! Puedes hablar de nuevo.');
@@ -274,7 +269,6 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         }
       }
 
-      // ---------- Reconocimiento de voz ----------
       function initSpeechRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -285,7 +279,7 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         const recog = new SpeechRecognition();
         recog.continuous = false;
         recog.interimResults = false;
-        recog.lang = 'en-US';  // inglés
+        recog.lang = 'en-US';
         recog.maxAlternatives = 1;
         
         recog.onstart = () => {
@@ -308,12 +302,9 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         };
         
         recog.onend = () => {
-          // Si se detuvo manualmente o por error, gestionar
           if (isRecording) {
-            // Se detuvo automáticamente después de hablar
             setStatus('⏳', 'Procesando...');
           } else {
-            // Detenido manualmente antes de hablar
             setStatus('🎤', 'Listo para escuchar');
             micButton.classList.remove('recording');
           }
@@ -321,20 +312,16 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         
         recog.onresult = (event) => {
           const transcript = event.results[0][0].transcript;
-          // Detenemos el indicador de grabación
           micButton.classList.remove('recording');
           isRecording = false;
-          // Procesar
           handleUserSpeech(transcript);
         };
         
         return recog;
       }
 
-      // Inicializar reconocimiento
       recognition = initSpeechRecognition();
 
-      // ---------- Event Listeners ----------
       saveApiKeyBtn.addEventListener('click', () => {
         const newKey = apiKeyInput.value.trim();
         if (newKey) {
@@ -359,16 +346,13 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         }
         
         if (isRecording) {
-          // Detener grabación manualmente
           recognition.stop();
           micButton.classList.remove('recording');
           isRecording = false;
           setStatus('🎤', 'Grabación detenida');
         } else {
-          // Cancelar cualquier síntesis de voz en curso para evitar interferencia
           if (synth.speaking) synth.cancel();
           
-          // Iniciar reconocimiento
           try {
             recognition.start();
           } catch (e) {
@@ -378,19 +362,16 @@ Output your answer strictly as a JSON object with keys "correction" and "respons
         }
       });
 
-      // Asegurar que las voces estén cargadas para TTS
       if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = () => synth.getVoices();
       }
-      synth.getVoices(); // precarga
+      synth.getVoices();
 
-      // Limpiar al cerrar página (opcional)
       window.addEventListener('beforeunload', () => {
         if (synth.speaking) synth.cancel();
         if (recognition && isRecording) recognition.stop();
       });
 
-      // Mostrar estado inicial
       if (apiKey) setStatus('🔑', 'API Key cargada. ¡Listo para practicar!');
       else setStatus('🔑', 'Pega tu API Key gratuita de Gemini para empezar');
 
