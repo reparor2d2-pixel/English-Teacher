@@ -1,381 +1,258 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>🗣️ English Tutor AI – Habla, Corrige y Conversa (Gratis)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @keyframes pulse-ring {
-      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-      70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-    }
-    .recording {
-      animation: pulse-ring 1.5s infinite;
-      background-color: #ef4444 !important;
-      border-color: #b91c1c !important;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Coach AI</title>
+    <style>
+        :root { --primary: #2563eb; --user-msg: #dcf8c6; --ai-msg: #f1f5f9; --bg: #e2e8f0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        header { background-color: var(--primary); color: white; padding: 15px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; line-height: 1.4; position: relative; }
+        .message.user { background-color: var(--user-msg); align-self: flex-end; border-bottom-right-radius: 2px; }
+        .message.ai { background-color: var(--ai-msg); align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        .message.system { background-color: #fee2e2; color: #991b1b; align-self: center; font-size: 0.9em; text-align: center; border-radius: 8px; }
+        .controls { background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        .input-area { display: flex; gap: 10px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; outline: none; }
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        #btnHablar { background-color: #ef4444; color: white; }
+        #btnHablar.listening { background-color: #b91c1c; animation: pulse 1.5s infinite; }
+        #btnEnviar { background-color: var(--primary); color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        #setup-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        #setup-screen input { width: 300px; margin: 10px 0; padding: 10px; font-size: 16px; text-align: center; }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 font-sans antialiased">
+<body>
 
-  <div class="max-w-2xl mx-auto">
-    <header class="text-center mb-6">
-      <h1 class="text-4xl font-bold text-indigo-800 flex items-center justify-center gap-3">
-        <span>🇬🇧</span> Speak & Correct <span>🤖</span>
-      </h1>
-      <p class="text-gray-600 text-lg mt-1">Habla en inglés · La IA te corrige y te responde</p>
+    <div id="setup-screen" style="display: none;">
+        <h2>Configuración Inicial</h2>
+        <p>Ingresa tu Google Gemini API Key para comenzar.</p>
+        <p style="font-size: 0.8em; color: #ccc;">(Se guardará localmente en tu navegador, es seguro para GitHub)</p>
+        <input type="password" id="apiKeyInput" placeholder="Pega tu API Key aquí...">
+        <button id="btnGuardarKey" style="background-color: #22c55e; color: white;">Guardar y Empezar</button>
+    </div>
+
+    <header>
+        <h2 style="margin: 0;">Profesor de Inglés AI</h2>
+        <div id="status" style="font-size: 0.9em; opacity: 0.8;">Listo para empezar</div>
     </header>
 
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-5 mb-6 border border-indigo-200">
-      <div class="flex flex-col sm:flex-row gap-3 items-end">
-        <div class="flex-grow">
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            🔑 Gemini API Key (gratuita)
-          </label>
-          <input type="password" id="apiKeyInput" placeholder="Pega tu API key aquí" 
-                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition">
-          <p class="text-xs text-gray-500 mt-1">
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-600 underline">Obtén una gratis aquí</a> (15 peticiones/min)
-          </p>
+    <div id="chat-container">
+        <div class="message ai">
+            <strong>Teacher:</strong><br>
+            Hello Cristian! I'm your English teacher. How are you doing today? You can speak or type to me!
         </div>
-        <button id="saveApiKeyBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-lg transition shadow-md whitespace-nowrap">
-          💾 Guardar
-        </button>
-      </div>
-      <div id="apiKeyStatus" class="text-sm mt-2 font-medium"></div>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-      <div class="h-80 overflow-y-auto p-5 space-y-4 bg-gray-50/50" id="chatLog">
-        <div class="flex justify-start">
-          <div class="bg-indigo-100 text-indigo-900 px-4 py-2 rounded-2xl rounded-bl-none max-w-[80%]">
-            <p class="text-sm font-medium">🤖 Tutor AI</p>
-            <p>¡Hola! Presiona el micrófono y habla en inglés. Te corregiré y responderé.</p>
-          </div>
+    <div class="controls">
+        <div class="input-area">
+            <button id="btnHablar" title="Hablar por micrófono">🎤 Hablar</button>
+            <input type="text" id="textoInput" placeholder="O escribe aquí tu mensaje en inglés..." autocomplete="off">
+            <button id="btnEnviar">Enviar</button>
         </div>
-      </div>
-
-      <div class="p-5 bg-white border-t border-gray-200 flex flex-col items-center gap-3">
-        <div id="statusMessage" class="text-gray-500 text-sm h-6 flex items-center gap-2">
-          <span id="statusIcon">🎤</span>
-          <span id="statusText">Listo para escuchar</span>
-        </div>
-        
-        <button id="micButton" class="w-20 h-20 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg flex items-center justify-center transition-all transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-10 h-10">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V6a3 3 0 116 0v6.75a3 3 0 01-3 3z" />
-          </svg>
-        </button>
-        
-        <p class="text-xs text-gray-400">Haz clic para hablar · Vuelve a hacer clic para detener</p>
-      </div>
     </div>
 
-    <div class="mt-6 text-sm text-gray-600 bg-white/60 backdrop-blur-sm p-4 rounded-xl">
-      <p class="font-semibold mb-1">💡 Cómo usar:</p>
-      <ol class="list-decimal list-inside space-y-1">
-        <li>Guarda tu API Key de Gemini (gratis).</li>
-        <li>Pulsa el micrófono y habla una frase en inglés.</li>
-        <li>Espera a que la IA procese (unos segundos).</li>
-        <li>Verás tu frase original, la corrección y la respuesta de la IA.</li>
-        <li>La respuesta se leerá en voz alta automáticamente.</li>
-      </ol>
-    </div>
-  </div>
+    <script>
+        // --- GESTIÓN DE API KEY ---
+        const setupScreen = document.getElementById('setup-screen');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const btnGuardarKey = document.getElementById('btnGuardarKey');
+        let API_KEY = localStorage.getItem('gemini_api_key');
 
-  <script>
-    (function(){
-      "use strict";
-
-      const apiKeyInput = document.getElementById('apiKeyInput');
-      const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
-      const apiKeyStatus = document.getElementById('apiKeyStatus');
-      const micButton = document.getElementById('micButton');
-      const statusIcon = document.getElementById('statusIcon');
-      const statusText = document.getElementById('statusText');
-      const chatLog = document.getElementById('chatLog');
-
-      let apiKey = localStorage.getItem('gemini_api_key') || '';
-      let recognition = null;
-      let isRecording = false;
-      let synth = window.speechSynthesis;
-
-      apiKeyInput.value = apiKey;
-      updateApiKeyStatus();
-
-      function updateApiKeyStatus() {
-        if (apiKey) {
-          apiKeyStatus.innerHTML = '✅ API Key guardada en el navegador.';
-          apiKeyStatus.className = 'text-sm mt-2 font-medium text-green-600';
-        } else {
-          apiKeyStatus.innerHTML = '⚠️ No hay API Key guardada. Pega una clave gratuita de Gemini.';
-          apiKeyStatus.className = 'text-sm mt-2 font-medium text-amber-600';
-        }
-      }
-
-      function addMessage(role, content, isCorrection = false) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-        
-        const bubble = document.createElement('div');
-        let bubbleClass = role === 'user' 
-          ? 'bg-blue-500 text-white rounded-2xl rounded-br-none' 
-          : isCorrection 
-            ? 'bg-amber-100 text-amber-900 border border-amber-300 rounded-2xl rounded-bl-none' 
-            : 'bg-indigo-100 text-indigo-900 rounded-2xl rounded-bl-none';
-        
-        bubble.className = `${bubbleClass} px-4 py-2 max-w-[80%] shadow-sm`;
-        
-        const header = document.createElement('p');
-        header.className = 'text-xs font-semibold mb-1 opacity-80';
-        header.textContent = role === 'user' ? '🧑 Tú' : (isCorrection ? '✏️ Corrección' : '🤖 Tutor');
-        
-        const text = document.createElement('p');
-        text.className = 'whitespace-pre-wrap break-words';
-        text.textContent = content;
-        
-        bubble.appendChild(header);
-        bubble.appendChild(text);
-        messageDiv.appendChild(bubble);
-        chatLog.appendChild(messageDiv);
-        
-        chatLog.scrollTop = chatLog.scrollHeight;
-      }
-
-      function setStatus(icon, text, isError = false) {
-        statusIcon.textContent = icon;
-        statusText.textContent = text;
-        if (isError) {
-          statusText.className = 'text-red-600';
-        } else {
-          statusText.className = '';
-        }
-      }
-
-      // ---------- FUNCIÓN MEJORADA PARA LLAMAR A LA IA ----------
-      async function callGeminiForCorrectionAndResponse(userText) {
-        if (!apiKey) {
-          throw new Error('Falta la API Key. Guárdala primero.');
+        if (!API_KEY) {
+            setupScreen.style.display = 'flex';
         }
 
-        const prompt = `You are an encouraging English tutor. The user said: "${userText}"
-
-Your task:
-1. Provide a grammatically corrected version of the user's sentence (if there are errors). If it's already perfect, write the same sentence.
-2. Provide a natural, friendly, and short response to the user's statement or question, as in a real conversation. Keep the response under 30 words.
-
-Output your answer strictly as a JSON object with keys "correction" and "response". Do not include any other text.`;
-
-        // Usamos gemini-2.0-flash (modelo gratuito y estable)
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 150 }
-          })
+        btnGuardarKey.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                API_KEY = key;
+                setupScreen.style.display = 'none';
+            }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error?.message || `Error HTTP ${response.status}`);
+        // --- ELEMENTOS DEL DOM ---
+        const chatContainer = document.getElementById('chat-container');
+        const btnHablar = document.getElementById('btnHablar');
+        const textoInput = document.getElementById('textoInput');
+        const btnEnviar = document.getElementById('btnEnviar');
+        const statusDiv = document.getElementById('status');
+
+        let isProcessing = false;
+
+        // --- FUNCIONES DE CHAT ---
+        function agregarMensaje(texto, tipo) {
+            const div = document.createElement('div');
+            div.className = `message ${tipo}`;
+            
+            let prefijo = "";
+            if (tipo === 'user') prefijo = "<strong>Cristian:</strong><br>";
+            if (tipo === 'ai') prefijo = "<strong>Teacher:</strong><br>";
+            if (tipo === 'system') prefijo = "⚠️ ";
+
+            // Convertir saltos de línea en <br> para el HTML
+            div.innerHTML = prefijo + texto.replace(/\n/g, '<br>');
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        const data = await response.json();
-        const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!aiText) throw new Error('La IA no devolvió texto válido.');
-
-        // 🔍 Mostrar en consola la respuesta cruda (para depurar si falla)
-        console.log('🔍 Respuesta cruda de la IA:', aiText);
-
-        // 🧹 LIMPIEZA ROBUSTA DEL JSON
-        let jsonStr = aiText.trim();
-        
-        // 1. Eliminar bloques de código markdown (```json ... ```)
-        const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-        if (codeBlockMatch) {
-          jsonStr = codeBlockMatch[1];
+        function cambiarEstado(mensaje) {
+            statusDiv.innerText = mensaje;
         }
-        
-        // 2. Eliminar cualquier texto antes de la primera llave '{' y después de la última '}'
-        const firstBrace = jsonStr.indexOf('{');
-        const lastBrace = jsonStr.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1) {
-          jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
-        }
-        
-        // 3. Limpiar caracteres de control o espacios extraños
-        jsonStr = jsonStr.replace(/[\u0000-\u001F]+/g, ' '); // Elimina caracteres de control
-        
-        // 4. Intentar parsear
-        let parsed;
-        try {
-          parsed = JSON.parse(jsonStr);
-        } catch (e) {
-          console.error('❌ Error al parsear JSON limpio:', jsonStr);
-          throw new Error('La IA no devolvió un JSON válido. Revisa la consola (F12) para más detalles.');
-        }
-        
-        if (!parsed.correction || !parsed.response) {
-          throw new Error('El JSON no contiene las claves "correction" y "response".');
-        }
-        return parsed;
-      }
 
-      function speakText(text) {
-        if (!text) return;
-        if (synth.speaking) synth.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
-        const voices = synth.getVoices();
-        const preferredVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google UK')) || 
-                               voices.find(v => v.lang === 'en-US') || 
-                               voices[0];
-        if (preferredVoice) utterance.voice = preferredVoice;
-        
-        synth.speak(utterance);
-      }
-
-      async function handleUserSpeech(transcript) {
-        addMessage('user', transcript);
-        setStatus('⏳', 'Procesando con IA...');
-        
-        try {
-          const result = await callGeminiForCorrectionAndResponse(transcript);
-          
-          const correction = result.correction.trim();
-          const responseText = result.response.trim();
-          
-          if (correction.toLowerCase() !== transcript.toLowerCase()) {
-            addMessage('assistant', correction, true);
-          }
-          
-          addMessage('assistant', responseText);
-          speakText(responseText);
-          
-          setStatus('✅', '¡Listo! Puedes hablar de nuevo.');
-        } catch (error) {
-          console.error(error);
-          setStatus('❌', `Error: ${error.message}`, true);
-          addMessage('assistant', `❌ Lo siento, ocurrió un error: ${error.message}. Revisa tu API Key o inténtalo de nuevo.`);
-        } finally {
-          micButton.classList.remove('recording');
-          isRecording = false;
-        }
-      }
-
-      function initSpeechRecognition() {
+        // --- RECONOCIMIENTO DE VOZ ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome, Edge o Safari.');
-          return null;
-        }
-        
-        const recog = new SpeechRecognition();
-        recog.continuous = false;
-        recog.interimResults = false;
-        recog.lang = 'en-US';
-        recog.maxAlternatives = 1;
-        
-        recog.onstart = () => {
-          isRecording = true;
-          micButton.classList.add('recording');
-          setStatus('🔴', 'Escuchando... habla claro en inglés');
-        };
-        
-        recog.onerror = (event) => {
-          console.error('Recognition error:', event.error);
-          let errorMsg = '';
-          if (event.error === 'no-speech') errorMsg = 'No se detectó voz. Intenta de nuevo.';
-          else if (event.error === 'audio-capture') errorMsg = 'No se pudo acceder al micrófono.';
-          else if (event.error === 'not-allowed') errorMsg = 'Permiso de micrófono denegado.';
-          else errorMsg = `Error: ${event.error}`;
-          
-          setStatus('⚠️', errorMsg, true);
-          micButton.classList.remove('recording');
-          isRecording = false;
-        };
-        
-        recog.onend = () => {
-          if (isRecording) {
-            setStatus('⏳', 'Procesando...');
-          } else {
-            setStatus('🎤', 'Listo para escuchar');
-            micButton.classList.remove('recording');
-          }
-        };
-        
-        recog.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          micButton.classList.remove('recording');
-          isRecording = false;
-          handleUserSpeech(transcript);
-        };
-        
-        return recog;
-      }
+        let recognition;
 
-      recognition = initSpeechRecognition();
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
 
-      saveApiKeyBtn.addEventListener('click', () => {
-        const newKey = apiKeyInput.value.trim();
-        if (newKey) {
-          apiKey = newKey;
-          localStorage.setItem('gemini_api_key', apiKey);
-          updateApiKeyStatus();
-          setStatus('🔑', 'API Key guardada correctamente');
+            recognition.onstart = () => {
+                cambiarEstado("Escuchando... (habla ahora)");
+                btnHablar.classList.add('listening');
+            };
+
+            recognition.onresult = async (event) => {
+                const transcript = event.results[0][0].transcript;
+                procesarEntrada(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                btnHablar.classList.remove('listening');
+                let mensajeError = "Error de micrófono.";
+                switch(event.error) {
+                    case 'not-allowed': mensajeError = "Permiso de micrófono denegado por el navegador."; break;
+                    case 'no-speech': mensajeError = "No se detectó voz. Intenta de nuevo."; break;
+                    case 'network': mensajeError = "Error de red. (Asegúrate de estar en https:// o localhost)"; break;
+                }
+                cambiarEstado("Error");
+                agregarMensaje(mensajeError, 'system');
+            };
+
+            recognition.onend = () => {
+                btnHablar.classList.remove('listening');
+                if (!isProcessing) cambiarEstado("Listo");
+            };
+
         } else {
-          alert('Por favor, pega una API Key válida.');
+            btnHablar.disabled = true;
+            agregarMensaje("Tu navegador no soporta reconocimiento de voz. Usa Safari, Chrome o Edge moderno.", 'system');
         }
-      });
 
-      micButton.addEventListener('click', () => {
-        if (!apiKey) {
-          alert('⚠️ Primero guarda tu API Key gratuita de Gemini.');
-          return;
+        btnHablar.addEventListener('click', () => {
+            if (!API_KEY) return alert("Falta la API Key.");
+            if (isProcessing) return; // Evitar que hable mientras la IA piensa
+            
+            // Interrumpir si la IA estaba hablando
+            window.speechSynthesis.cancel(); 
+            try { recognition.start(); } catch(e) { /* Ya estaba iniciado */ }
+        });
+
+        // --- ENVÍO POR TEXTO ---
+        btnEnviar.addEventListener('click', () => {
+            if (!API_KEY) return alert("Falta la API Key.");
+            const texto = textoInput.value.trim();
+            if (texto) {
+                textoInput.value = '';
+                procesarEntrada(texto);
+            }
+        });
+
+        textoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnEnviar.click();
+        });
+
+        // --- LÓGICA CENTRAL ---
+        async function procesarEntrada(texto) {
+            isProcessing = true;
+            btnHablar.disabled = true;
+            btnEnviar.disabled = true;
+            textoInput.disabled = true;
+            window.speechSynthesis.cancel(); // Detener audios anteriores
+
+            agregarMensaje(texto, 'user');
+            cambiarEstado("Teacher está pensando...");
+
+            // Prompt robusto para la IA
+            const prompt = `Actúa como un profesor de inglés experto, paciente y amigable. Tu alumno se llama Cristian y no tiene recursos para pagar un curso, así que eres su única herramienta de práctica.
+            Instrucciones:
+            1. El alumno dice: "${texto}"
+            2. Primero, analiza la frase. Si hay errores gramaticales, de sintaxis o de uso de palabras, corrígelos amablemente explicando brevemente en español el porqué. Si la frase es perfecta, anímalo.
+            3. Segundo, responde a lo que dijo de forma natural en INGLÉS para mantener una conversación fluida. Mantén la respuesta en inglés corta (2-3 oraciones) y con un nivel intermedio (B1).
+            Formato de tu respuesta:
+            [Corrección en español o mensaje de ánimo]
+            ---
+            [Tu respuesta conversacional en inglés]`;
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.7 }
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 400) throw new Error("API Key inválida o error en la petición.");
+                    throw new Error(`Error del servidor: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const respuestaIA = data.candidates[0].content.parts[0].text;
+                
+                agregarMensaje(respuestaIA, 'ai');
+                
+                // Extraer solo la parte en inglés para leerla en voz alta
+                // Busca lo que hay después del separador "---"
+                const partes = respuestaIA.split('---');
+                const textoParaLeer = partes.length > 1 ? partes[1].trim() : respuestaIA;
+
+                hablarTexto(textoParaLeer);
+
+            } catch (error) {
+                agregarMensaje(`Error de conexión con IA: ${error.message}`, 'system');
+                console.error(error);
+                // Si la key es inválida, borrarla para que la pida de nuevo
+                if(error.message.includes("API Key")) {
+                    localStorage.removeItem('gemini_api_key');
+                    setTimeout(() => location.reload(), 2000);
+                }
+            } finally {
+                isProcessing = false;
+                btnHablar.disabled = false;
+                btnEnviar.disabled = false;
+                textoInput.disabled = false;
+                textoInput.focus();
+                cambiarEstado("Listo");
+            }
         }
-        
-        if (!recognition) {
-          alert('Reconocimiento de voz no disponible en este navegador.');
-          return;
+
+        // --- SÍNTESIS DE VOZ ---
+        function hablarTexto(texto) {
+            const utterance = new SpeechSynthesisUtterance(texto);
+            utterance.lang = 'en-US';
+            utterance.rate = 0.9; // Un poco más lento para aprender mejor
+            
+            const voices = window.speechSynthesis.getVoices();
+            const englishVoice = voices.find(voice => voice.lang.includes('en-US') && (voice.name.includes('Google') || voice.name.includes('Natural')));
+            if (englishVoice) utterance.voice = englishVoice;
+
+            window.speechSynthesis.speak(utterance);
         }
-        
-        if (isRecording) {
-          recognition.stop();
-          micButton.classList.remove('recording');
-          isRecording = false;
-          setStatus('🎤', 'Grabación detenida');
-        } else {
-          if (synth.speaking) synth.cancel();
-          
-          try {
-            recognition.start();
-          } catch (e) {
-            console.error(e);
-            setStatus('❌', 'Error al iniciar micrófono', true);
-          }
-        }
-      });
 
-      if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = () => synth.getVoices();
-      }
-      synth.getVoices();
-
-      window.addEventListener('beforeunload', () => {
-        if (synth.speaking) synth.cancel();
-        if (recognition && isRecording) recognition.stop();
-      });
-
-      if (apiKey) setStatus('🔑', 'API Key cargada. ¡Listo para practicar!');
-      else setStatus('🔑', 'Pega tu API Key gratuita de Gemini para empezar');
-
-    })();
-  </script>
+        // Cargar voces al inicio (a veces el navegador tarda en cargarlas)
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    </script>
 </body>
 </html>
